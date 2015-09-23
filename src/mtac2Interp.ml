@@ -24,7 +24,7 @@ module Mtac2Run = struct
       let sigma = Proofview.Goal.sigma gl in
       let env = Proofview.Goal.env gl in
       let concl = Proofview.Goal.concl gl in
-      let sigma,c = Constrintern.interp_open_constr env sigma t in
+      let (sigma, c) = Constrintern.interp_open_constr env sigma t in
       let (sigma, t) = pretypeT env sigma concl c in
       let r = Run.run (env, sigma) c in
       match r with
@@ -41,7 +41,7 @@ module Mtac2ProofInfos = struct
   *)
 
   (**  *)
-  type split_tree=
+  type split_tree =
     | Skip_patt of Names.Id.Set.t * split_tree
     | Split_patt of Names.Id.Set.t * Names.inductive * (bool array * (Names.Id.Set.t * split_tree) option) array
     | Close_patt of split_tree
@@ -113,22 +113,17 @@ end
    and the vernac MProof command.
 *)
 
-(** Get the infos of a goal *)
-let get_its_info gls = Mtac2ProofInfos.get_info gls.Evd.sigma gls.Evd.it
-
 (**  *)
-let tcl_change_info_gen info_gen =
-  (fun gls ->
-     let it = Evd.sig_it gls in
-     let concl = Tacmach.pf_concl gls in
-     let hyps = Goal.V82.hyps (Tacmach.project gls) it in
-     let extra = Goal.V82.extra (Tacmach.project gls) it in
-     let (gl, ev, sigma) =
-       Goal.V82.mk_goal (Tacmach.project gls) hyps concl (info_gen extra)
-     in
-     let sigma = Goal.V82.partial_solution sigma it ev in
-     {Evd.it = [gl]; sigma}
-  )
+let tcl_change_info_gen info_gen gls =
+  let it = Evd.sig_it gls in
+  let concl = Tacmach.pf_concl gls in
+  let hyps = Goal.V82.hyps (Tacmach.project gls) it in
+  let extra = Goal.V82.extra (Tacmach.project gls) it in
+  let (gl, ev, sigma) =
+    Goal.V82.mk_goal (Tacmach.project gls) hyps concl (info_gen extra)
+  in
+  let sigma = Goal.V82.partial_solution sigma it ev in
+  {Evd.it = [gl]; sigma}
 
 (** Updates the info of the evar maps *)
 let tcl_change_info info gls =
