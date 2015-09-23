@@ -82,25 +82,26 @@ module Mtac2ProofInfos = struct
   let info = Evd.Store.field ()
 
   (** Get back the infos of a given goal *)
-  let get_info sigma gl=
-    match Evd.Store.get (Goal.V82.extra sigma gl) info with
+  let get_info store =
+    match Evd.Store.get store info with
     | None -> invalid_arg "get_info"
     | Some pm -> pm
-
-  let get_stack pts =
-    let { Evd.it = goals; sigma } = Proof.V82.subgoals pts in
-    let info = get_info sigma (List.hd goals) in
-    info.pm_stack
 
   let proof_focus = Proof.new_focus_kind ()
   let proof_cond = Proof.no_cond proof_focus
 
   (** focus on the proof *)
-  let focus p =
-    let inf = get_stack p in
-    Printf.printf "____focus\n%!";
-    Proof_global.simple_with_current_proof
-      (fun _ -> Proof.focus proof_cond inf 1)
+  let focus () =
+    Printf.printf "____focus\n%!"; (* TODO: Remove debug *)
+    let aux goal =
+      let store = Proofview.Goal.extra goal in
+      let inf = get_info store in
+      let aux tactic proof =
+        (Proof.focus proof_cond inf.pm_stack 1 proof, tactic)
+      in
+      Proof_global.with_current_proof aux
+    in
+    Proofview.Goal.nf_enter aux
 
   (** unfocus *)
   let maximal_unfocus () =
@@ -140,8 +141,7 @@ let start_proof_tac gls=
     the current proof *)
 let go_to_proof_mode () =
   ignore (Pfedit.by (Proofview.V82.tactic start_proof_tac));
-  let p = Proof_global.give_me_the_proof () in
-  Mtac2ProofInfos.focus p
+  ignore (Pfedit.by (Mtac2ProofInfos.focus ()))
 
 
 (** Interpreter of the MProof vernac command :
@@ -149,8 +149,8 @@ let go_to_proof_mode () =
     - Set the proof mode to "MProof" mode.
     - Print subgoals *)
 let interp_mproof_command () =
-  let pf = Proof_global.give_me_the_proof () in
-  if Proof.is_done pf then
+  let proof = Proof_global.give_me_the_proof () in
+  if Proof.is_done proof then
     Errors.error "Nothing left to prove here."
   else
     begin
